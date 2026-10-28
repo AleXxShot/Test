@@ -11,7 +11,9 @@
     --muted: #5d6a60;
     --line: #d3d9cf;
     --accent: #c4471d;
+    --accent2: #2f6fb5;
     --lot: #7fae5c;
+    --lot2: #a7b85a;
     --ground: #d9d4c4;
     --sky: #e4ebe2;
     --display: "Archivo", "Helvetica Neue", Arial, sans-serif;
@@ -21,12 +23,12 @@
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
       --bg: #141a16; --panel: #1c241f; --fg: #e6ebe4; --muted: #9aa79c; --line: #2f3a33;
-      --accent: #ec7a4f; --lot: #4f7d3a; --ground: #3a3830; --sky: #1a221d; color-scheme: dark;
+      --accent: #ec7a4f; --accent2: #6fa5e0; --lot: #4f7d3a; --lot2: #6f7a35; --ground: #3a3830; --sky: #1a221d; color-scheme: dark;
     }
   }
   :root[data-theme="dark"] {
     --bg: #141a16; --panel: #1c241f; --fg: #e6ebe4; --muted: #9aa79c; --line: #2f3a33;
-    --accent: #ec7a4f; --lot: #4f7d3a; --ground: #3a3830; --sky: #1a221d; color-scheme: dark;
+    --accent: #ec7a4f; --accent2: #6fa5e0; --lot: #4f7d3a; --lot2: #6f7a35; --ground: #3a3830; --sky: #1a221d; color-scheme: dark;
   }
   body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 16px; line-height: 1.5; }
   .wrap {
@@ -40,6 +42,7 @@
   .eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
   h1 { font-family: var(--display); font-weight: 800; font-size: clamp(34px, 6vw, 60px); line-height: 1; margin: 4px 0 0; text-wrap: balance; }
   h1 span { color: var(--accent); }
+  h1 em { font-style: normal; color: var(--accent2); }
   .lede { max-width: 46ch; margin: 0; color: var(--muted); }
   .lede b { color: var(--fg); }
 
@@ -52,9 +55,13 @@
   .readout {
     position: absolute; right: 12px; top: 12px; background: var(--panel); border: 1px solid var(--line);
     border-radius: 6px; padding: 8px 12px; font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums;
-    display: grid; gap: 2px; text-align: right;
+    display: grid; gap: 6px; text-align: right;
   }
-  .readout strong { font-family: var(--display); font-size: 20px; color: var(--accent); }
+  .readout div { display: grid; gap: 0; }
+  .readout strong { font-family: var(--display); font-size: 20px; }
+  .readout .a strong { color: var(--accent); }
+  .readout .b strong { color: var(--accent2); }
+  .readout .diff { color: var(--muted); border-top: 1px solid var(--line); padding-top: 4px; }
 
   .controls { display: flex; flex-wrap: wrap; gap: 16px 28px; }
   .group { display: grid; gap: 6px; }
@@ -73,6 +80,7 @@
   .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
   .fact { background: var(--panel); padding: 16px 18px; display: grid; gap: 4px; align-content: start; min-width: 0; }
   .fact .num { font-family: var(--display); font-weight: 700; font-size: 28px; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .fact .num.b { color: var(--accent2); }
   .fact .lbl { font-weight: 600; }
   .fact .sub { color: var(--muted); font-size: 14px; }
   .note { color: var(--muted); font-size: 14px; max-width: 70ch; margin: 0; }
@@ -82,20 +90,20 @@
   <header>
     <div>
       <div class="eyebrow">Superficie del terreno</div>
-      <h1><span>128 m²</span> a escala real</h1>
+      <h1><span>128 m²</span> junto a <em>200 m²</em></h1>
     </div>
-    <p class="lede">Un terreno de 128 m² mide, por ejemplo, <b>8 × 16 m</b>: el clásico lote habitacional. Si fuera cuadrado, tendría <b>11.3 m por lado</b>. Ahí cabe una casa de dos pisos con patio, o <b>9 carros estacionados</b>.</p>
+    <p class="lede">Un terreno de 128 m² mide, por ejemplo, <b>8 × 16 m</b>. Al lado está un terreno de <b>10 × 20 m (200 m²)</b>: tiene 72 m² más, es decir, es <b>1.56 veces más grande</b>. Eso son 2 m más de frente y 4 m más de fondo.</p>
   </header>
 
   <div class="viewer">
-    <canvas id="scene" aria-label="Render 3D de un terreno de 128 metros cuadrados con carros y una persona para comparar el tamaño"></canvas>
+    <canvas id="scene" aria-label="Render 3D de un terreno de 128 metros cuadrados junto a uno de 10 por 20 metros, con carros y una persona para comparar el tamaño"></canvas>
     <div class="readout" id="readout"></div>
     <div class="hint">Arrastra para girar · rueda o pellizca para acercar</div>
   </div>
 
   <div class="controls">
     <div class="group">
-      <span>Forma del terreno</span>
+      <span>Forma del terreno de 128 m²</span>
       <div class="seg" id="shape">
         <button type="button" id="s-816" data-w="16" data-d="8" aria-pressed="true">8 × 16 m</button>
         <button type="button" id="s-sq" data-w="11.31" data-d="11.31" aria-pressed="false">11.3 × 11.3 m</button>
@@ -113,14 +121,14 @@
   </div>
 
   <div class="facts">
-    <div class="fact"><span class="num">4.6 × 1.8 m</span><span class="lbl">Un carro sedán</span><span class="sub">Ocupa unos 8.3 m². El terreno equivale a ~15 carros pegados uno junto a otro.</span></div>
+    <div class="fact"><span class="num b">+72 m²</span><span class="lbl">Diferencia con el de 10 × 20 m</span><span class="sub">El terreno de 200 m² es 1.56 veces el de 128 m². Le caben 16 cajones de estacionamiento contra 9.</span></div>
+    <div class="fact"><span class="num">4.6 × 1.8 m</span><span class="lbl">Un carro sedán</span><span class="sub">Ocupa unos 8.3 m². El terreno de 128 m² equivale a ~15 carros pegados uno junto a otro (el de 200 m², a ~24).</span></div>
     <div class="fact"><span class="num">9 cajones</span><span class="lbl">Estacionamiento real</span><span class="sub">Con cajones de 2.5 × 5 m (12.5 m²) y espacio para abrir puertas, en un lote de 8 × 16 m.</span></div>
-    <div class="fact"><span class="num">≈ ½</span><span class="lbl">Cancha de tenis</span><span class="sub">Una cancha de dobles mide 23.8 × 11 m (261 m²). Tu terreno es el 49 %.</span></div>
-    <div class="fact"><span class="num">≈ 30 %</span><span class="lbl">Cancha de básquetbol</span><span class="sub">La cancha FIBA mide 28 × 15 m (420 m²).</span></div>
-    <div class="fact"><span class="num">≈ 2</span><span class="lbl">Departamentos de 2 recámaras</span><span class="sub">Un departamento típico tiene entre 60 y 70 m² construidos.</span></div>
-    <div class="fact"><span class="num">56 lotes</span><span class="lbl">Caben en un campo de fútbol</span><span class="sub">Un campo de 105 × 68 m tiene 7,140 m².</span></div>
+    <div class="fact"><span class="num">≈ ½</span><span class="lbl">Cancha de tenis</span><span class="sub">Una cancha de dobles mide 23.8 × 11 m (261 m²). El terreno de 128 m² es el 49 %; el de 200 m², el 77 %.</span></div>
+    <div class="fact"><span class="num">≈ 30 %</span><span class="lbl">Cancha de básquetbol</span><span class="sub">La cancha FIBA mide 28 × 15 m (420 m²). El de 200 m² es casi la mitad (48 %).</span></div>
+    <div class="fact"><span class="num">56 lotes</span><span class="lbl">Caben en un campo de fútbol</span><span class="sub">Un campo de 105 × 68 m tiene 7,140 m². De 10 × 20 m caben unos 35.</span></div>
   </div>
-  <p class="note">Las medidas del render son a escala 1:1 en metros. La cuadrícula del terreno marca cuadros de 1 m², así que puedes contar los 128.</p>
+  <p class="note">Las medidas del render son a escala 1:1 en metros. La cuadrícula de cada terreno marca cuadros de 1 m², así que puedes contarlos.</p>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -139,51 +147,53 @@
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 400);
-  camera.position.set(17, 15, 19);
+  camera.position.set(17, 18, 26);
 
   const controls = new THREE.OrbitControls(camera, canvas);
   controls.enableDamping = true;
   controls.maxPolarAngle = Math.PI / 2.1;
   controls.minDistance = 5;
-  controls.maxDistance = 70;
+  controls.maxDistance = 100;
   controls.target.set(0, 0.5, 0);
 
   scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8470, 0.75));
   const sun = new THREE.DirectionalLight(0xffffff, 0.8);
-  sun.position.set(14, 22, 10);
+  sun.position.set(14, 26, 12);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
-  Object.assign(sun.shadow.camera, { left: -16, right: 16, top: 16, bottom: -16, near: 1, far: 70 });
+  Object.assign(sun.shadow.camera, { left: -26, right: 26, top: 20, bottom: -20, near: 1, far: 90 });
   scene.add(sun);
 
   // Suelo alrededor
   const groundMat = new THREE.MeshLambertMaterial();
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), groundMat);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(240, 240), groundMat);
   ground.rotation.x = -Math.PI / 2;
   ground.position.y = -0.02;
   ground.receiveShadow = true;
   scene.add(ground);
 
   const lotMat = new THREE.MeshLambertMaterial();
+  const lotMat2 = new THREE.MeshLambertMaterial();
   let lotGroup = new THREE.Group();
   let propsGroup = new THREE.Group();
   scene.add(lotGroup, propsGroup);
 
   function applyTheme() {
     scene.background = tok('--sky');
-    scene.fog = new THREE.Fog(scene.background, 45, 120);
+    scene.fog = new THREE.Fog(scene.background, 70, 170);
     groundMat.color = tok('--ground');
     lotMat.color = tok('--lot');
+    lotMat2.color = tok('--lot2');
   }
 
-  function label(text, scale) {
+  function label(text, scale, bg) {
     const c = document.createElement('canvas');
     const ctx = c.getContext('2d');
     ctx.font = '600 56px "IBM Plex Mono", monospace';
     const w = Math.ceil(ctx.measureText(text).width) + 48;
     c.width = w; c.height = 88;
     ctx.font = '600 56px "IBM Plex Mono", monospace';
-    ctx.fillStyle = 'rgba(29,38,32,0.88)';
+    ctx.fillStyle = bg || 'rgba(29,38,32,0.88)';
     const r = 16;
     ctx.beginPath();
     ctx.moveTo(r, 0); ctx.arcTo(w, 0, w, 88, r); ctx.arcTo(w, 88, 0, 88, r); ctx.arcTo(0, 88, 0, 0, r); ctx.arcTo(0, 0, w, 0, r);
@@ -201,14 +211,27 @@
 
   function fmt(n) { return (Math.round(n * 10) / 10).toString(); }
 
-  function buildLot(W, D) {
-    scene.remove(lotGroup);
-    lotGroup = new THREE.Group();
+  const state = { W: 16, D: 8, mode: 'one', person: true };
 
-    const lot = new THREE.Mesh(new THREE.PlaneGeometry(W, D), lotMat);
+  // Los dos terrenos en fila, con un pasillo de 3 m entre ellos
+  function lots() {
+    const gap = 3, W2 = 20, D2 = 10;
+    const x1 = -(state.W + gap + W2) / 2 + state.W / 2;
+    return [
+      { W: state.W, D: state.D, cx: x1, mat: lotMat, tagBg: 'rgba(196,71,29,0.92)', main: true },
+      { W: W2, D: D2, cx: x1 + state.W / 2 + gap + W2 / 2, mat: lotMat2, tagBg: 'rgba(47,111,181,0.92)', main: false }
+    ];
+  }
+
+  function addLot(parent, L) {
+    const { W, D } = L;
+    const grp = new THREE.Group();
+    grp.position.x = L.cx;
+
+    const lot = new THREE.Mesh(new THREE.PlaneGeometry(W, D), L.mat);
     lot.rotation.x = -Math.PI / 2;
     lot.receiveShadow = true;
-    lotGroup.add(lot);
+    grp.add(lot);
 
     // Cuadrícula de 1 m
     const pts = [];
@@ -216,28 +239,37 @@
     for (let z = -D / 2; z <= D / 2 + 1e-6; z += 1) pts.push(-W / 2, 0.01, z, W / 2, 0.01, z);
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-    lotGroup.add(new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.28 })));
+    grp.add(new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.28 })));
 
     // Estacas y cinta de deslinde
-    const stakeMat = new THREE.MeshLambertMaterial({ color: 0xc4471d });
+    const stakeMat = new THREE.MeshLambertMaterial({ color: L.main ? 0xc4471d : 0x2f6fb5 });
     const corners = [[-W / 2, -D / 2], [W / 2, -D / 2], [W / 2, D / 2], [-W / 2, D / 2]];
     corners.forEach(([x, z]) => {
       const s = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.2, 10), stakeMat);
       s.position.set(x, 0.6, z);
       s.castShadow = true;
-      lotGroup.add(s);
+      grp.add(s);
     });
     const tape = new THREE.BufferGeometry().setFromPoints(
       corners.concat([corners[0]]).map(([x, z]) => new THREE.Vector3(x, 1.0, z))
     );
-    lotGroup.add(new THREE.Line(tape, new THREE.LineBasicMaterial({ color: 0xf2c230 })));
+    grp.add(new THREE.Line(tape, new THREE.LineBasicMaterial({ color: 0xf2c230 })));
 
     const lw = label(fmt(W) + ' m', 0.9);
     lw.position.set(0, 0.6, D / 2 + 1.1);
     const ld = label(fmt(D) + ' m', 0.9);
-    ld.position.set(W / 2 + 1.6, 0.6, 0);
-    lotGroup.add(lw, ld);
+    ld.position.set(L.main ? -W / 2 - 1.6 : W / 2 + 1.6, 0.6, 0);
+    const area = label(fmt(W * D) + ' m²', 1.4, L.tagBg);
+    area.position.set(0, 4.2, -D / 2);
+    grp.add(lw, ld, area);
 
+    parent.add(grp);
+  }
+
+  function buildLots() {
+    scene.remove(lotGroup);
+    lotGroup = new THREE.Group();
+    lots().forEach((L) => addLot(lotGroup, L));
     scene.add(lotGroup);
   }
 
@@ -298,55 +330,64 @@
     return a.nx * a.nz >= b.nx * b.nz ? a : b;
   }
 
-  const state = { W: 16, D: 8, mode: 'one', person: true };
+  function addProps(parent, L) {
+    const { W, D } = L;
+    const grp = new THREE.Group();
+    grp.position.x = L.cx;
+    let spots = 0;
+
+    if (state.mode === 'one') {
+      const car = makeCar(L.main ? carColors[0] : carColors[1]);
+      if (W >= D) car.position.set(-W / 2 + 3.4, 0, D / 2 - 2.0);
+      else { car.rotation.y = Math.PI / 2; car.position.set(W / 2 - 2.0, 0, -D / 2 + 3.4); }
+      grp.add(car);
+    } else {
+      const P = parkingLayout(W, D);
+      spots = P.nx * P.nz;
+      const ox = -(P.nx * P.sx) / 2, oz = -(P.nz * P.sz) / 2;
+      const stripe = [];
+      for (let i = 0; i < P.nx; i++) {
+        for (let k = 0; k < P.nz; k++) {
+          const car = makeCar(carColors[(i * P.nz + k) % carColors.length]);
+          car.rotation.y = P.rot;
+          car.position.set(ox + P.sx * (i + 0.5), 0, oz + P.sz * (k + 0.5));
+          grp.add(car);
+        }
+      }
+      for (let i = 0; i <= P.nx; i++) stripe.push(ox + i * P.sx, 0.02, oz, ox + i * P.sx, 0.02, oz + P.nz * P.sz);
+      for (let k = 0; k <= P.nz; k++) stripe.push(ox, 0.02, oz + k * P.sz, ox + P.nx * P.sx, 0.02, oz + k * P.sz);
+      const sg = new THREE.BufferGeometry();
+      sg.setAttribute('position', new THREE.Float32BufferAttribute(stripe, 3));
+      grp.add(new THREE.LineSegments(sg, new THREE.LineBasicMaterial({ color: 0xffffff })));
+    }
+
+    if (state.person && L.main) {
+      const p = makePerson();
+      if (state.mode === 'one') p.position.set(W >= D ? 0.8 : -1.2, 0, W >= D ? -0.6 : 1.2);
+      else p.position.set(-W / 2 - 0.9, 0, -D / 2 + 0.9);
+      grp.add(p);
+    }
+    parent.add(grp);
+    return spots;
+  }
 
   function buildProps() {
     scene.remove(propsGroup);
     propsGroup = new THREE.Group();
-    const { W, D } = state;
-    let spots = 0;
-
-    if (state.mode === 'one') {
-      const car = makeCar(carColors[0]);
-      if (W >= D) car.position.set(-W / 2 + 3.4, 0, D / 2 - 2.0);
-      else { car.rotation.y = Math.PI / 2; car.position.set(W / 2 - 2.0, 0, -D / 2 + 3.4); }
-      propsGroup.add(car);
-    } else {
-      const L = parkingLayout(W, D);
-      spots = L.nx * L.nz;
-      const ox = -(L.nx * L.sx) / 2, oz = -(L.nz * L.sz) / 2;
-      const stripe = [];
-      for (let i = 0; i < L.nx; i++) {
-        for (let k = 0; k < L.nz; k++) {
-          const cx = ox + L.sx * (i + 0.5), cz = oz + L.sz * (k + 0.5);
-          const car = makeCar(carColors[(i * L.nz + k) % carColors.length]);
-          car.rotation.y = L.rot;
-          car.position.set(cx, 0, cz);
-          propsGroup.add(car);
-        }
-      }
-      for (let i = 0; i <= L.nx; i++) stripe.push(ox + i * L.sx, 0.02, oz, ox + i * L.sx, 0.02, oz + L.nz * L.sz);
-      for (let k = 0; k <= L.nz; k++) stripe.push(ox, 0.02, oz + k * L.sz, ox + L.nx * L.sx, 0.02, oz + k * L.sz);
-      const sg = new THREE.BufferGeometry();
-      sg.setAttribute('position', new THREE.Float32BufferAttribute(stripe, 3));
-      propsGroup.add(new THREE.LineSegments(sg, new THREE.LineBasicMaterial({ color: 0xffffff })));
-    }
-
-    if (state.person) {
-      const p = makePerson();
-      if (state.mode === 'one') p.position.set(W >= D ? 0.8 : -1.2, 0, W >= D ? -0.6 : 1.2);
-      else p.position.set(W / 2 + 0.9, 0, -D / 2 + 0.9);
-      propsGroup.add(p);
-    }
+    const [A, B] = lots();
+    const sA = addProps(propsGroup, A);
+    const sB = addProps(propsGroup, B);
     scene.add(propsGroup);
 
-    readout.innerHTML =
-      '<strong>' + fmt(W * D) + ' m²</strong>' +
-      '<span>' + fmt(W) + ' × ' + fmt(D) + ' m</span>' +
-      (state.mode === 'park' ? '<span>' + spots + ' cajones de 2.5 × 5 m</span>' : '<span>carro: 4.6 × 1.8 m</span>');
+    const park = state.mode === 'park';
+    const block = (cls, L, s) =>
+      '<div class="' + cls + '"><strong>' + fmt(L.W * L.D) + ' m²</strong>' +
+      '<span>' + fmt(L.W) + ' × ' + fmt(L.D) + ' m' + (park ? ' · ' + s + ' cajones' : '') + '</span></div>';
+    readout.innerHTML = block('a', A, sA) + block('b', B, sB) +
+      '<span class="diff">+' + fmt(B.W * B.D - A.W * A.D) + ' m² · ' + (B.W * B.D / (A.W * A.D)).toFixed(2) + '×</span>';
   }
 
-  function rebuild() { buildLot(state.W, state.D); buildProps(); }
+  function rebuild() { buildLots(); buildProps(); }
 
   function bindSeg(id, onPick) {
     const seg = document.getElementById(id);
@@ -368,9 +409,9 @@
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
-    // En pantallas angostas, alejar la cámara para que quepa el terreno
-    const far = w < 600 ? 1.45 : 1;
-    camera.position.setLength(30 * far);
+    // En pantallas angostas, alejar la cámara para que quepan los dos terrenos
+    const far = w < 600 ? 1.7 : 1;
+    camera.position.setLength(42 * far);
   }
   new ResizeObserver(resize).observe(canvas);
 
@@ -380,7 +421,7 @@
 
   rebuild();
   resize();
-  (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => buildLot(state.W, state.D));
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(buildLots);
 
   (function loop() {
     controls.update();

@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Sonar Eco</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&family=Saira+Semi+Condensed:wght@500;700&display=swap">
+<style>
+/* Layout: one column scope instrument — fan display on top, waterfall below, readouts and controls in a strip. */
+:root{
+  --bg:#071318; --panel:#0c1d24; --line:#1b3640; --fg:#d7ece9; --muted:#7f9ea3;
+  --scope:#53d6e0; --hot:#ffb347; --alert:#ff6b5a; --ok:#6fdc9a;
+  --f-display:"Saira Semi Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg)}
+body{font:15px/1.5 var(--f-body);
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:max(24px,env(safe-area-inset-bottom,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:14px;padding-block:14px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font:700 28px/1 var(--f-display);letter-spacing:.06em;text-transform:uppercase;margin:0}
+h1 span{color:var(--scope)}
+.chip{font:500 12px/1 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;padding:7px 10px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
+.chip[data-s="move"]{color:var(--bg);background:var(--hot);border-color:var(--hot)}
+.chip[data-s="still"]{color:var(--ok);border-color:var(--ok)}
+.chip[data-s="cal"]{color:var(--scope);border-color:var(--scope)}
+.chip[data-s="bad"]{color:var(--alert);border-color:var(--alert)}
+.scope{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+#fan{display:block;width:100%;aspect-ratio:2/1.15;max-width:100%}
+.note{font-size:12px;color:var(--muted);padding:0 14px 12px;margin:0}
+.wf-head{display:flex;justify-content:space-between;font:500 11px/1 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:12px 14px 8px}
+#wf{display:block;width:100%;height:200px}
+#prof{display:block;width:100%;height:70px;border-top:1px solid var(--line)}
+.axis{display:flex;justify-content:space-between;font:400 11px/1 var(--f-mono);color:var(--muted);padding:6px 14px 12px}
+.reads{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.read{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-width:0}
+.read b{display:block;font:500 11px/1.2 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.read output{font:700 24px/1 var(--f-display);font-variant-numeric:tabular-nums}
+.bar{height:6px;background:var(--line);border-radius:3px;margin-top:8px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--scope);transition:width .1s}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+button{font:600 15px/1 var(--f-body);border:0;border-radius:10px;padding:13px 18px;cursor:pointer;background:var(--scope);color:var(--bg)}
+button.ghost{background:transparent;color:var(--fg);border:1px solid var(--line)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--hot);outline-offset:2px}
+label.ctl{display:flex;flex-direction:column;gap:4px;font:500 11px/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+select,input[type=range]{accent-color:var(--scope)}
+select{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:8px;font:14px var(--f-body)}
+#msg{font-size:14px;color:var(--hot);min-height:1.5em;margin:0}
+details{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+summary{cursor:pointer;font-weight:500}
+details ol,details p{color:var(--muted);margin:.6em 0 0;padding-left:1.2em}
+details p{padding-left:0}
+@media (max-width:420px){.read output{font-size:20px}h1{font-size:24px}}
+@media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Sonar <span>Eco</span></h1>
+    <span class="chip" id="chip" data-s="demo">Demo</span>
+  </header>
+
+  <section class="scope" aria-label="Pantalla del sonar">
+    <canvas id="fan" aria-label="Anillos de distancia con el movimiento detectado"></canvas>
+    <p class="note">El sonar mide distancia, no dirección: un solo micrófono no sabe de qué lado viene el eco, por eso el movimiento aparece como un anillo alrededor del teléfono.</p>
+  </section>
+
+  <div class="reads">
+    <div class="read"><b>Movimiento a</b><output id="rDist">—</output></div>
+    <div class="read"><b>Intensidad</b><output id="rLvl">0</output><div class="bar"><i id="bLvl"></i></div></div>
+    <div class="read"><b>Pulso</b><output id="rSig">—</output><div class="bar"><i id="bSig"></i></div></div>
+  </div>
+
+  <div class="controls">
+    <button id="go">Activar sonar</button>
+    <button id="demo" class="ghost" hidden>Volver a demo</button>
+    <label class="ctl" for="range">Alcance
+      <select id="range"><option value="1.5">1,5 m</option><option value="3" selected>3 m</option><option value="5">5 m</option></select>
+    </label>
+    <label class="ctl" for="sens">Sensibilidad
+      <input id="sens" type="range" min="1" max="10" value="6">
+    </label>
+    <label class="ctl" for="vol">Volumen
+      <input id="vol" type="range" min="10" max="100" value="90">
+    </label>
+  </div>
+  <p id="msg" role="status"></p>
+
+  <section class="scope" aria-label="Historial">
+    <div class="wf-head"><span>Movimiento en el tiempo ↓</span><span>Distancia →</span></div>
+    <canvas id="wf"></canvas>
+    <canvas id="prof" aria-label="Ecos fijos: paredes y muebles"></canvas>
+    <div class="axis" id="axis"></div>
+  </section>
+
+  <details>
+    <summary>Cómo usarlo</summary>
+    <ol>
+      <li>Saca el modo silencio y sube el volumen al máximo.</li>
+      <li>Deja el teléfono quieto sobre una mesa, con la pantalla hacia arriba.</li>
+      <li>Toca <b>Activar sonar</b> y permite el micrófono. Quédate quieto unos 2 segundos mientras calibra.</li>
+      <li>Muévete o camina frente al teléfono: el anillo naranjo marca a qué distancia está el movimiento.</li>
+    </ol>
+    <p>Cómo funciona: el parlante emite 23 chirridos por segundo entre 17,5 y 20,5 kHz, casi inaudibles para un adulto. El micrófono graba los ecos. El tiempo que tarda cada eco en volver da la distancia (3,6 mm por muestra), y lo que cambia entre un pulso y el siguiente es movimiento. Las paredes y los muebles no se mueven, así que se restan. Ojo: perros, gatos y algunos niños sí pueden oír el pitido.</p>
+    <p>Los datos se procesan solo en tu teléfono. No se graba ni se envía nada.</p>
+  </details>
+</div>
+
+<script>
+(() => {
+"use strict";
+const C_SOUND = 343, P = 2048, NC = 96, F0 = 17500, F1 = 20500, CHIRP_S = 0.010, MIN_D = 0.18;
+const $ = id => document.getElementById(id);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+/* ---------- FFT (radix-2, in place) ---------- */
+const rev = new Uint32Array(P), cosT = new Float64Array(P / 2), sinT = new Float64Array(P / 2);
+{ const bits = Math.log2(P);
+  for (let i = 0; i < P; i++) { let r = 0; for (let b = 0; b < bits; b++) r = (r << 1) | ((i >> b) & 1); rev[i] = r; }
+  for (let i = 0; i < P / 2; i++) { cosT[i] = Math.cos(2 * Math.PI * i / P); sinT[i] = -Math.sin(2 * Math.PI * i / P); } }
+function fft(re, im) {
+  for (let i = 0; i < P; i++) { const j = rev[i]; if (j > i) { let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; } }
+  for (let size = 2; size <= P; size <<= 1) {
+    const half = size >> 1, step = P / size;
+    for (let s = 0; s < P; s += size) for (let k = 0; k < half; k++) {
+      const wr = cosT[k * step], wi = sinT[k * step], a = s + k, b = a + half;
+      const tr = re[b] * wr - im[b] * wi, ti = re[b] * wi + im[b] * wr;
+      re[b] = re[a] - tr; im[b] = im[a] - ti; re[a] += tr; im[a] += ti;
+    }
+  }
+}
+function ifft(re, im) { for (let i = 0; i < P; i++) im[i] = -im[i]; fft(re, im); for (let i = 0; i < P; i++) { re[i] /= P; im[i] = -im[i] / P; } }
+
+/* ---------- shared state ---------- */
+let maxRange = 3, sens = 6;
+const cells = new Float32Array(NC), prof = new Float32Array(NC);
+let floorE = 0, detDist = null, detLvl = 0, sigQ = 0, status = "demo", frames = 0;
+
+/* ---------- real sonar ---------- */
+let ctx = null, stream = null, src = null, gainN = null, node = null, wakeLock = null;
+let fs = 48000, chirp, Cre, Cim, b0, b1, off = -1;
+const re = new Float64Array(P), im = new Float64Array(P);
+let bgr = null, bgi = null, mm = null;
+
+function buildChirp() {
+  const L = Math.round(CHIRP_S * fs); chirp = new Float32Array(P);
+  for (let n = 0; n < L; n++) {
+    const t = n / fs, ph = 2 * Math.PI * (F0 * t + (F1 - F0) / (2 * CHIRP_S) * t * t);
+    chirp[n] = Math.sin(ph) * (0.5 - 0.5 * Math.cos(2 * Math.PI * n / (L - 1)));
+  }
+  Cre = new Float64Array(P); Cim = new Float64Array(P); Cre.set(chirp); fft(Cre, Cim);
+  b0 = Math.floor((F0 - 1000) / fs * P); b1 = Math.min(P / 2 - 1, Math.ceil((F1 + 1000) / fs * P));
+}
+const kOf = d => Math.round(d * 2 * fs / C_SOUND);
+
+function processFrame(frame) {
+  for (let i = 0; i < P; i++) { re[i] = frame[i]; im[i] = 0; }
+  fft(re, im);
+  for (let k = 0; k < P; k++) {
+    if (k >= b0 && k <= b1) { const a = re[k], b = im[k], c = Cre[k], d = Cim[k]; re[k] = 2 * (a * c + b * d); im[k] = 2 * (b * c - a * d); }
+    else { re[k] = 0; im[k] = 0; }
+  }
+  ifft(re, im);
+  // find direct path (speaker -> mic): strongest peak, tracked frame to frame
+  let gi = 0, gm = 0;
+  for (let i = 0; i < P; i++) { const m = re[i] * re[i] + im[i] * im[i]; if (m > gm) { gm = m; gi = i; } }
+  let relock = off < 0;
+  if (!relock) {
+    let li = off, lm = 0;
+    for (let d = -6; d <= 6; d++) { const i = (off + d + P) % P, m = re[i] * re[i] + im[i] * im[i]; if (m > lm) { lm = m; li = i; } }
+    if (lm < 0.4 * gm) relock = true; else off = li;
+  }
+  if (relock) { off = gi; frames = 0; }
+  const direct = Math.sqrt(re[off] * re[off] + im[off] * im[off]) + 1e-12;
+  // noise reference: median magnitude far behind the pulse
+  const tmp = []; for (let i = P / 2; i < P / 2 + 400; i += 4) { const j = (off + i) % P; tmp.push(Math.hypot(re[j], im[j])); }
+  tmp.sort((a, b) => a - b); const noise = tmp[tmp.length >> 1] + 1e-12;
+  sigQ = 20 * Math.log10(direct / noise);
+
+  const kmax = Math.min(P / 2, kOf(maxRange)), kmin = kOf(MIN_D);
+  if (!bgr || bgr.length !== kmax + 1 || frames === 0) { bgr = new Float64Array(kmax + 1); bgi = new Float64Array(kmax + 1); mm = new Float32Array(kmax + 1);
+    for (let k = 0; k <= kmax; k++) { const j = (off + k) % P; bgr[k] = re[j]; bgi[k] = im[j]; } }
+  for (let k = kmin; k <= kmax; k++) {
+    const j = (off + k) % P, qr = re[j], qi = im[j];
+    mm[k] = Math.hypot(qr - bgr[k], qi - bgi[k]) / direct;
+    bgr[k] += 0.15 * (qr - bgr[k]); bgi[k] += 0.15 * (qi - bgi[k]);
+  }
+  for (let c = 0; c < NC; c++) {
+    const d0 = MIN_D + (maxRange - MIN_D) * c / NC, d1 = MIN_D + (maxRange - MIN_D) * (c + 1) / NC;
+    let mx = 0, px = 0;
+    for (let k = kOf(d0); k < Math.max(kOf(d0) + 1, kOf(d1)); k++) {
+      if (k > kmax) break; if (mm[k] > mx) mx = mm[k];
+      const j = (off + k) % P, e = Math.hypot(re[j], im[j]) / direct; if (e > px) px = e;
+    }
+    const w = 0.6 + (d0 + d1) / 2; // echoes fade with distance
+    cells[c] = 0.55 * cells[c] + 0.45 * mx * w; prof[c] = px;
+  }
+  frames++;
+  analyse(sigQ < 12 ? "bad" : null);
+}
+
+async function start() {
+  $("msg").textContent = "";
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    $("msg").textContent = "Este navegador no da acceso al micrófono aquí. Abre la página con https en Safari o Chrome."; return;
+  }
+  try {
+    if (navigator.audioSession) { try { navigator.audioSession.type = "play-and-record"; } catch (e) {} }
+    const AC = window.AudioContext || window.webkitAudioContext;
+    try { ctx = new AC({ latencyHint: "interactive", sampleRate: 48000 }); } catch (e) { ctx = new AC({ latencyHint: "interactive" }); }
+    await ctx.resume();
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } });
+    fs = ctx.sampleRate; buildChirp();
+    // speaker: looping pulse train
+    const buf = ctx.createBuffer(1, P, fs); buf.copyToChannel(chirp, 0);
+    src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+    gainN = ctx.createGain(); gainN.gain.value = $("vol").value / 100;
+    src.connect(gainN).connect(ctx.destination);
+    // microphone capture in exact P-sample frames
+    const mic = ctx.createMediaStreamSource(stream);
+    const sink = ctx.createGain(); sink.gain.value = 0; sink.connect(ctx.destination);
+    const onFrame = f => { if (status !== "demo") processFrame(f); };
+    node = null;
+    if (ctx.audioWorklet) try {
+      const code = `class Cap extends AudioWorkletProcessor{constructor(){super();this.b=new Float32Array(${P});this.i=0}
+        process(inp){const c=inp[0]&&inp[0][0];if(c){for(let j=0;j<c.length;j++){this.b[this.i++]=c[j];if(this.i===${P}){this.port.postMessage(this.b,[this.b.buffer]);this.b=new Float32Array(${P});this.i=0}}}return true}}
+        registerProcessor('cap',Cap);`;
+      const url = URL.createObjectURL(new Blob([code], { type: "application/javascript" }));
+      await ctx.audioWorklet.addModule(url);
+      node = new AudioWorkletNode(ctx, "cap", { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1] });
+      node.port.onmessage = e => onFrame(e.data);
+    } catch (e) { node = null; }
+    if (!node) {
+      node = ctx.createScriptProcessor(P, 1, 1);
+      node.onaudioprocess = e => onFrame(new Float32Array(e.inputBuffer.getChannelData(0)));
+    }
+    mic.connect(node); node.connect(sink);
+    src.start();
+    off = -1; frames = 0; floorE = 0; cells.fill(0); clearWaterfall();
+    status = "cal"; $("go").textContent = "Detener"; $("demo").hidden = true;
+    try { wakeLock = await navigator.wakeLock?.request("screen"); } catch (e) {}
+  } catch (err) {
+    stop(false);
+    $("msg").textContent = err && err.name === "NotAllowedError"
+      ? "Sin permiso de micrófono. Actívalo en Ajustes › Safari › Micrófono y vuelve a intentar."
+      : "No pude iniciar el audio: " + (err && err.message || err);
+  }
+}
+function stop(toDemo = true) {
+  try { src && src.stop(); } catch (e) {}
+  stream && stream.getTracks().forEach(t => t.stop());
+  ctx && ctx.close(); ctx = stream = src = node = null;
+  try { wakeLock && wakeLock.release(); } catch (e) {}
+  $("go").textContent = "Activar sonar";
+  $("demo").hidden = true;
+  if (toDemo) { status = "idle"; $("demo").hidden = false; setChip(); }
+}
+
+/* ---------- detection ---------- */
+function analyse(force) {
+  const sorted = Array.from(cells).sort((a, b) => a - b), med = sorted[NC >> 1] + 1e-9;
+  floorE = floorE ? floorE + 0.03 * (med - floorE) : med;
+  let mi = 0; for (let c = 1; c < NC; c++) if (cells[c] > cells[mi]) mi = c;
+  const ratio = cells[mi] / floorE, T = 1.6 + (10 - sens) * 0.45;
+  detLvl = Math.max(0, Math.min(1, Math.log(ratio) / Math.log(T * 3)));
+  const dist = MIN_D + (maxRange - MIN_D) * (mi + 0.5) / NC;
+  if (force) status = force;
+  else if (status !== "demo" && frames < 45) status = "cal";
+  else if (ratio > T) { detDist = detDist == null ? dist : detDist + 0.35 * (dist - detDist); if (status !== "demo") status = "move"; }
+  else { detDist = null; if (status !== "demo") status = "still"; }
+  pushRow();
+}
+
+/* ---------- demo signal (simulated person walking) ---------- */
+let demoT = 0;
+function demoFrame() {
+  if (status !== "demo") return;
+  demoT += 1 / 23;
+  const walking = (demoT % 14) < 10;
+  const person = 1.5 + 0.95 * Math.sin(demoT * 0.6);
+  const breath = 0.9;
+  for (let c = 0; c < NC; c++) {
+    const d = MIN_D + (maxRange - MIN_D) * (c + 0.5) / NC;
+    let v = 0.0025 * (0.6 + Math.random());
+    if (walking) v += 0.05 * Math.exp(-((d - person) ** 2) / 0.012) * (0.7 + 0.6 * Math.random());
+    else v += 0.006 * Math.exp(-((d - breath) ** 2) / 0.006) * (1 + Math.sin(demoT * 1.6)) * Math.random();
+    cells[c] = 0.55 * cells[c] + 0.45 * v;
+    prof[c] = 0.02 + 0.5 * Math.exp(-((d - 2.6) ** 2) / 0.004) + 0.25 * Math.exp(-((d - 0.75) ** 2) / 0.003) + 0.01 * Math.random();
+  }
+  sigQ = 34 + Math.random() * 2; frames++;
+  analyse();
+}
+setInterval(demoFrame, 1000 / 23);
+
+/* ---------- drawing ---------- */
+const fan = $("fan"), wf = $("wf"), pf = $("prof");
+const fctx = fan.getContext("2d"), wctx = wf.getContext("2d"), pctx = pf.getContext("2d");
+let col = {};
+function fit() {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  for (const c of [fan, pf]) { const r = c.getBoundingClientRect(); c.width = Math.round(r.width * dpr); c.height = Math.round(r.height * dpr); }
+  const first = wf.width !== NC * 4;
+  if (first) { wf.width = NC * 4; wf.height = 200; }
+  col = { bg: css("--panel"), line: css("--line"), muted: css("--muted"), scope: css("--scope"), hot: css("--hot"), fg: css("--fg") };
+  if (first) clearWaterfall();
+  drawAxis();
+}
+function clearWaterfall() { wctx.fillStyle = col.bg || "#0c1d24"; wctx.fillRect(0, 0, wf.width, wf.height); }
+function heat(v) { // 0..1 -> navy, cyan, amber, white
+  const stops = [[12, 29, 36], [30, 110, 130], [83, 214, 224], [255, 179, 71], [255, 245, 225]];
+  const x = Math.max(0, Math.min(0.999, v)) * (stops.length - 1), i = Math.floor(x), t = x - i;
+  return stops[i].map((a, k) => Math.round(a + (stops[i + 1][k] - a) * t));
+}
+const cellV = c => { const T = 1.6 + (10 - sens) * 0.45; return Math.max(0, Math.log(cells[c] / (floorE || 1e-9)) / Math.log(T * 3)); };
+function pushRow() {
+  wctx.drawImage(wf, 0, 0, wf.width, wf.height - 1, 0, 1, wf.width, wf.height - 1);
+  const row = wctx.createImageData(wf.width, 1);
+  for (let x = 0; x < wf.width; x++) {
+    const [r, g, b] = heat(cellV(Math.floor(x / 4)));
+    row.data.set([r, g, b, 255], x * 4);
+  }
+  wctx.putImageData(row, 0, 0);
+}
+function drawAxis() {
+  const step = maxRange > 3 ? 1 : 0.5, parts = [];
+  for (let d = 0; d <= maxRange + 1e-6; d += step) parts.push(`<span>${d.toLocaleString("es-CL")} m</span>`);
+  $("axis").innerHTML = parts.join("");
+}
+function drawFan(now) {
+  const w = fan.width, h = fan.height, dpr = w / fan.getBoundingClientRect().width;
+  const ox = w / 2, oy = h - 26 * dpr, R = Math.min(w / 2 - 14 * dpr, oy - 14 * dpr);
+  fctx.clearRect(0, 0, w, h); fctx.fillStyle = col.bg; fctx.fillRect(0, 0, w, h);
+  const rOf = d => (d / maxRange) * R;
+  // motion energy as rings
+  for (let c = 0; c < NC; c++) {
+    const v = Math.min(1, cellV(c)); if (v < 0.04) continue;
+    const d = MIN_D + (maxRange - MIN_D) * (c + 0.5) / NC, [r, g, b] = heat(v);
+    fctx.strokeStyle = `rgba(${r},${g},${b},${0.25 + 0.75 * v})`; fctx.lineWidth = R / NC * 1.15 + 1;
+    fctx.beginPath(); fctx.arc(ox, oy, rOf(d), Math.PI, 2 * Math.PI); fctx.stroke();
+  }
+  // range grid
+  const step = maxRange > 3 ? 1 : 0.5;
+  fctx.lineWidth = 1 * dpr; fctx.font = `${11 * dpr}px "IBM Plex Mono", monospace`; fctx.textAlign = "center";
+  for (let d = step; d <= maxRange + 1e-6; d += step) {
+    fctx.strokeStyle = col.line; fctx.beginPath(); fctx.arc(ox, oy, rOf(d), Math.PI, 2 * Math.PI); fctx.stroke();
+    const last = d + step > maxRange + 1e-6;
+    fctx.fillStyle = col.muted; fctx.fillText(d.toLocaleString("es-CL") + (last ? " m" : ""), ox + rOf(d), oy + 16 * dpr);
+  }
+  fctx.strokeStyle = col.line; fctx.beginPath(); fctx.moveTo(ox - R, oy); fctx.lineTo(ox + R, oy); fctx.stroke();
+  // detection band
+  if (detDist != null) {
+    const pulse = 0.6 + 0.4 * Math.sin(now / 160);
+    fctx.save(); fctx.shadowColor = col.hot; fctx.shadowBlur = 18 * dpr;
+    fctx.strokeStyle = col.hot; fctx.globalAlpha = pulse; fctx.lineWidth = 4 * dpr;
+    fctx.beginPath(); fctx.arc(ox, oy, rOf(detDist), Math.PI, 2 * Math.PI); fctx.stroke(); fctx.restore();
+    fctx.fillStyle = col.hot; fctx.font = `700 ${15 * dpr}px "Saira Semi Condensed", sans-serif`;
+    fctx.fillText(detDist.toFixed(2).replace(".", ",") + " m", ox, Math.max(16 * dpr, oy - rOf(detDist) - 8 * dpr));
+  }
+  // phone
+  fctx.fillStyle = col.scope; fctx.beginPath(); fctx.arc(ox, oy, 5 * dpr, 0, 2 * Math.PI); fctx.fill();
+  fctx.fillStyle = col.muted; fctx.font = `${10 * dpr}px "IBM Plex Mono", monospace`; fctx.textAlign = "right"; fctx.fillText("TELÉFONO", ox - 8 * dpr, oy + 16 * dpr); fctx.textAlign = "center";
+}
+function drawProfile() {
+  const w = pf.width, h = pf.height; pctx.clearRect(0, 0, w, h); pctx.fillStyle = col.bg; pctx.fillRect(0, 0, w, h);
+  let mx = 1e-9; for (let c = 0; c < NC; c++) mx = Math.max(mx, prof[c]);
+  pctx.beginPath(); pctx.moveTo(0, h);
+  for (let c = 0; c < NC; c++) { const x = (c + 0.5) / NC * w, y = h - 4 - (prof[c] / mx) * (h - 18); pctx.lineTo(x, y); }
+  pctx.lineTo(w, h); pctx.closePath(); pctx.fillStyle = "rgba(83,214,224,.18)"; pctx.fill();
+  pctx.strokeStyle = col.scope; pctx.lineWidth = 1.5; pctx.stroke();
+  const dpr = w / pf.getBoundingClientRect().width;
+  pctx.fillStyle = col.muted; pctx.font = `${10 * dpr}px "IBM Plex Mono", monospace`; pctx.textAlign = "left";
+  pctx.fillText("ECOS FIJOS (PAREDES, MUEBLES)", 8 * dpr, 13 * dpr);
+}
+const chipText = { demo: "Demo", idle: "Detenido", cal: "Calibrando", still: "Quieto", move: "Movimiento", bad: "Sin pulso" };
+function setChip() { const c = $("chip"); c.dataset.s = status; c.textContent = chipText[status] || status; }
+function frame(now) {
+  drawFan(now); drawProfile(); setChip();
+  $("rDist").textContent = detDist != null ? detDist.toFixed(2).replace(".", ",") + " m" : "—";
+  $("rLvl").textContent = Math.round(detLvl * 100); $("bLvl").style.width = (detLvl * 100) + "%";
+  $("bLvl").style.background = detDist != null ? col.hot : col.scope;
+  const q = Math.max(0, Math.min(1, (sigQ - 6) / 30));
+  $("rSig").textContent = status === "idle" ? "—" : (q > 0.5 ? "Bueno" : q > 0.2 ? "Débil" : "Malo");
+  $("bSig").style.width = (q * 100) + "%";
+  if (status === "bad") $("msg").textContent = "No escucho el pulso: sube el volumen, saca el modo silencio y no tapes el parlante ni el micrófono.";
+  else if ($("msg").textContent.startsWith("No escucho")) $("msg").textContent = "";
+  requestAnimationFrame(frame);
+}
+
+/* ---------- controls ---------- */
+$("go").addEventListener("click", () => { if (ctx) stop(); else start(); });
+$("demo").addEventListener("click", () => { status = "demo"; $("demo").hidden = true; floorE = 0; clearWaterfall(); });
+$("range").addEventListener("change", e => { maxRange = +e.target.value; bgr = null; frames = 0; floorE = 0; cells.fill(0); clearWaterfall(); drawAxis(); });
+$("sens").addEventListener("input", e => { sens = +e.target.value; });
+$("vol").addEventListener("input", e => { if (gainN) gainN.gain.value = e.target.value / 100; });
+window.addEventListener("resize", fit);
+window.__sonar = { get frames() { return frames; }, get off() { return off; }, get sigQ() { return sigQ; }, get status() { return status; } };
+fit(); requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
